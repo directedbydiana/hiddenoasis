@@ -54,7 +54,11 @@ export async function saveContactAction(
   const parsed = parseContact(payload);
   if (!parsed.contact) return { error: parsed.error };
 
-  await saveContact(parsed.contact, previousSlug || undefined);
+  try {
+    await saveContact(parsed.contact, previousSlug || undefined);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not save." };
+  }
   revalidatePath("/");
   revalidatePath(`/${parsed.contact.slug}`);
   if (previousSlug) revalidatePath(`/${previousSlug}`);
@@ -63,7 +67,11 @@ export async function saveContactAction(
 
 export async function deleteContactAction(slug: string): Promise<ActionResult> {
   await requireAdmin();
-  await deleteContact(slug);
+  try {
+    await deleteContact(slug);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not delete." };
+  }
   revalidatePath("/");
   revalidatePath(`/${slug}`);
   redirect("/admin");

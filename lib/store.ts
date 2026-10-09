@@ -7,12 +7,17 @@ import { DEFAULT_DESIGN, type Contact } from "./types";
 const BLOB_STORE = "hiddenoasis";
 const BLOB_KEY = "contacts";
 const FILE_PATH = path.join(process.cwd(), ".data", "contacts.json");
+const READ_TIMEOUT_MS = 6000;
+const WRITE_TIMEOUT_MS = 10000;
 
 type Backend = "blobs" | "file";
 
+// Last storage failure, shown on the admin page so a broken backend is visible.
+let lastError: string | null = null;
+
 // Netlify Blobs when running on Netlify (or when credentials are supplied),
 // otherwise a gitignored JSON file for local development.
-function backend(): Backend {
+export function backend(): Backend {
   const forced = process.env.CONTACTS_STORE;
   if (forced === "blobs" || forced === "file") return forced;
   if (process.env.NETLIFY_BLOBS_CONTEXT) return "blobs";
@@ -21,12 +26,20 @@ function backend(): Backend {
   return "file";
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function blobStore() {
   const { getStore } = await import("@netlify/blobs");
   const siteID = process.env.NETLIFY_SITE_ID;
   const token = process.env.NETLIFY_BLOBS_TOKEN;
-  if (siteID && token) return getStore({ name: BLOB_STORE, siteID, token });
-  return getStore(BLOB_STORE);
+  if (siteID && token) return getStore({ name: BLOB_STORE, siteID, token, consistency: "strong" });
+  return getStore({ name: BLOB_STORE, consistency: "strong" });
 }
 
 // Fills in fields added after a record was stored (e.g. design).
@@ -50,11 +63,23 @@ function normalize(contacts: Contact[]): Contact[] {
   });
 }
 
+function describe(err: unknown) {
+  return err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+}
+
 async function readAll(): Promise<Contact[]> {
   if (backend() === "blobs") {
-    const store = await blobStore();
-    const data = (await store.get(BLOB_KEY, { type: "json" })) as Contact[] | null;
-    return normalize(data ?? (seedData as Contact[]));
+    try {
+      const store = await blobStore();
+      const data = (await withTimeout(store.get(BLOB_KEY, { type: "json" }), READ_TIMEOUT_MS, "Netlify Blobs read")) as Contact[] | null;
+      lastError = null;
+      return normalize(data ?? (seedData as Contact[]));
+    } catch (err) {
+      // Never let storage take the site down: serve the committed seed.
+      lastError = describe(err);
+      console.error("[store] Netlify Blobs read failed, serving seed:", lastError);
+      return normalize(seedData as Contact[]);
+    }
   }
   try {
     const raw = await fs.readFile(FILE_PATH, "utf8");
@@ -67,8 +92,15 @@ async function readAll(): Promise<Contact[]> {
 
 async function writeAll(contacts: Contact[]) {
   if (backend() === "blobs") {
-    const store = await blobStore();
-    await store.setJSON(BLOB_KEY, contacts);
+    try {
+      const store = await blobStore();
+      await withTimeout(store.setJSON(BLOB_KEY, contacts), WRITE_TIMEOUT_MS, "Netlify Blobs write");
+      lastError = null;
+    } catch (err) {
+      lastError = describe(err);
+      console.error("[store] Netlify Blobs write failed:", lastError);
+      throw new Error(`Could not save to Netlify Blobs (${lastError}).`);
+    }
     return;
   }
   await fs.mkdir(path.dirname(FILE_PATH), { recursive: true });
@@ -100,7 +132,34 @@ export async function deleteContact(slug: string) {
 }
 
 export function storeDescription() {
-  return backend() === "blobs"
-    ? "Netlify Blobs"
-    : `local file (${path.relative(process.cwd(), FILE_PATH)})`;
+  const base = backend() === "blobs" ? "Netlify Blobs" : `local file (${path.relative(process.cwd(), FILE_PATH)})`;
+  return lastError ? `${base} — unavailable, serving seed data (${lastError})` : base;
+}
+
+/** Non-secret facts about the storage backend, for the diagnostics endpoint. */
+export async function storageDiagnostics() {
+  const started = Date.now();
+  let probe = "skipped";
+  if (backend() === "blobs") {
+    try {
+      const store = await blobStore();
+      const data = (await withTimeout(store.get(BLOB_KEY, { type: "json" }), READ_TIMEOUT_MS, "Netlify Blobs read")) as Contact[] | null;
+      probe = data ? `ok, ${data.length} contact(s) stored` : "ok, store empty (seed in use)";
+    } catch (err) {
+      probe = `failed: ${describe(err)}`;
+    }
+  }
+  return {
+    backend: backend(),
+    env: {
+      NETLIFY: process.env.NETLIFY ?? null,
+      hasBlobsContext: Boolean(process.env.NETLIFY_BLOBS_CONTEXT),
+      hasSiteId: Boolean(process.env.NETLIFY_SITE_ID),
+      hasBlobsToken: Boolean(process.env.NETLIFY_BLOBS_TOKEN),
+      contactsStore: process.env.CONTACTS_STORE ?? null,
+      node: process.version,
+    },
+    probe,
+    ms: Date.now() - started,
+  };
 }
