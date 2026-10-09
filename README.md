@@ -64,6 +64,12 @@ Google fonts (Work Sans, Special Elite, Caveat) load through `next/font/google`.
 local display faces live in `app/fonts/` and load through `next/font/local`:
 Machine Heavy for signage, Tropical Sunlight for script accents and typed signatures.
 
+## Deploying
+
+Netlify builds with the Node version in `.nvmrc`. Set `ADMIN_PASSWORD` and `AUTH_SECRET`
+in the site's environment variables before the first deploy. The old `/dianacdev` and
+`/diana_cervantes.vcf` URLs redirect to the current card.
+
 ## Environment variables
 
 | Variable | Purpose |
