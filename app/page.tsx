@@ -1,12 +1,14 @@
-import Image from "next/image";
+import Lobby from "@/components/Lobby";
+import { listContacts } from "@/lib/store";
+import { toPublic } from "@/lib/types";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const contacts = (await listContacts()).map(toPublic);
   return (
-    <main className="flex flex-col justify-center items-center">
-      <h1>Catalog</h1>
-      <nav>
-        <a href="http://shadedoasis.com/dianacdev"> Diana&apos;s Developer Info</a>
-      </nav>
+    <main>
+      <Lobby contacts={contacts} />
     </main>
   );
 }

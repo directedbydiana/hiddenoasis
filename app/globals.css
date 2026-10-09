@@ -3,49 +3,88 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 238, 174, 202, 100;
-  --background-end-rgb: 148, 187, 233, 100;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 174, 238, 220, 100;
-    --background-end-rgb: 155, 148, 233, 100;
-  }
+  --cream: #f4ead6;
+  --ink: #1f1a17;
+  --neon: #ff3b6b;
 }
 
 body {
-  /* background: linear-gradient(
-    to bottom right,
-    rgb(var(--background-start-rgb)),
-    rgb(var(--background-end-rgb))
-  );
-  color: rgb(var(--foreground-rgb)); */
-  height: 100vh;
-  background: conic-gradient(at center top, rgb(17, 24, 39), rgb(243, 244, 246), rgb(17, 24, 39))
+  min-height: 100vh;
+  background: var(--cream);
+  color: var(--ink);
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
-
-h1,h2,h3{
+h1,
+h2,
+h3 {
   font-weight: bold;
 }
 
-.group:hover .absolute {
-  animation: shine 1s linear infinite;
+.font-type {
+  font-family: var(--font-type), "Courier New", monospace;
 }
 
-@keyframes shine {
-  0% {
-    transform: translateX(-100%);
-  }
+.font-hand {
+  font-family: var(--font-hand), "Segoe Script", cursive;
+}
+
+.font-sign {
+  font-family: var(--font-sign), "Impact", "Arial Narrow", sans-serif;
+}
+
+.font-script {
+  font-family: var(--font-script), var(--font-hand), cursive;
+}
+
+.fob:focus-visible,
+.card-focus:focus-visible {
+  outline: 3px solid var(--neon);
+  outline-offset: 3px;
+}
+
+.rolodex-card {
+  transition: transform 520ms cubic-bezier(0.22, 0.9, 0.24, 1), opacity 400ms ease;
+}
+
+/* Sky motion: twinkling stars and slowly drifting clouds. */
+.twinkle {
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%,
   100% {
-    transform: translateX(100%);
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.drift-slow {
+  animation: drift 140s ease-in-out infinite alternate;
+}
+
+.drift-slower {
+  animation: drift 220s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(-6%);
+  }
+  to {
+    transform: translateX(6%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rolodex-card {
+    transition: none !important;
+  }
+  .twinkle,
+  .drift-slow,
+  .drift-slower {
+    animation: none;
   }
 }
