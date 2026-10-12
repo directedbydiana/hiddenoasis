@@ -88,7 +88,7 @@ export function IosPreview({ contact }: { contact: PublicContact }) {
 export function AndroidPreview({ contact }: { contact: PublicContact }) {
   const name = fullName(contact) || "(No name)";
   const subtitle = [contact.title, contact.orgs.join(", ")].filter(Boolean).join(" · ");
-  const accent = ACCENTS[contact.design.accent].hex;
+  const accent = ACCENTS[contact.design.accent].light;
   return (
     <Frame>
       <div className="h-6 bg-white" />

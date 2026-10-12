@@ -1,17 +1,4 @@
-import {
-  ACCENT_IDS,
-  CARD_STYLES,
-  CardDesign,
-  Contact,
-  ContactLink,
-  DEFAULT_DESIGN,
-  INK_IDS,
-  LINK_KINDS,
-  LinkKind,
-  NOTE_MAX,
-  PAPER_IDS,
-  inkPasses,
-} from "./types";
+import { CardDesign, Contact, ContactLink, DEFAULT_DESIGN, LINK_KINDS, LinkKind, NOTE_MAX, coerceAccent } from "./types";
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
 const RESERVED_SLUGS = new Set(["admin", "api", "_next", "favicon.ico", "new", "edit"]);
@@ -22,10 +9,6 @@ type Result = { contact: Contact; error?: undefined } | { contact?: undefined; e
 
 function str(v: unknown, max = 200) {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
-}
-
-function pick<T extends readonly string[]>(options: T, v: unknown, fallback: T[number]): T[number] {
-  return typeof v === "string" && (options as readonly string[]).includes(v) ? v : fallback;
 }
 
 function parseLinks(raw: unknown): ContactLink[] | string {
@@ -43,19 +26,11 @@ function parseLinks(raw: unknown): ContactLink[] | string {
   return links;
 }
 
+// Accepts records written by older versions (extra fields are ignored).
 export function parseDesign(raw: unknown): CardDesign {
   const d = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const paper = pick(PAPER_IDS, d.paper, DEFAULT_DESIGN.paper);
-  let ink = pick(INK_IDS, d.ink, DEFAULT_DESIGN.ink);
-  // Guardrail: only AA-passing ink/paper pairs are stored.
-  if (!inkPasses(ink, paper)) ink = INK_IDS.find((i) => inkPasses(i, paper)) ?? "black";
-
   return {
-    style: pick(CARD_STYLES, d.style, DEFAULT_DESIGN.style),
-    paper,
-    ink,
-    accent: pick(ACCENT_IDS, d.accent ?? d.fobColor, DEFAULT_DESIGN.accent),
-    photoTreated: d.photoTreated !== false,
+    accent: coerceAccent(d.accent ?? d.fobColor, DEFAULT_DESIGN.accent),
     photoAlt: str(d.photoAlt, 120),
     note: str(d.note, NOTE_MAX),
   };

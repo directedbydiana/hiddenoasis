@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Pencil, Plus } from "lucide-react";
+import { ExternalLink, Pencil, Plus } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { listContacts, storeDescription } from "@/lib/store";
 import { fullName } from "@/lib/types";
+import { btnPrimary, btnSecondary, card, page } from "@/lib/ui";
 import { logoutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -11,56 +12,42 @@ export default async function AdminPage() {
   const contacts = await listContacts();
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-4 py-16">
-      <div className="w-full max-w-3xl flex items-center justify-between">
-        <Link href="/" className="text-sm text-neutral-700 hover:underline">
-          ← Rolodex
-        </Link>
-        <form action={logoutAction}>
-          <button className="text-sm text-neutral-700 hover:underline">Sign out</button>
-        </form>
-      </div>
-
-      <div className="mt-8 w-full max-w-3xl flex items-end justify-between gap-4">
+    <main className={page}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold">Manage contacts</h1>
-          <p className="text-xs text-neutral-600">Stored in {storeDescription()}.</p>
+          <h1 className="text-2xl font-semibold">Manage contacts</h1>
+          <p className="mt-1 text-sm text-muted">Stored in {storeDescription()}.</p>
         </div>
-        <Link
-          href="/admin/new"
-          className="inline-flex items-center gap-1 rounded-md bg-slate-800 text-white px-3 py-2 text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" /> New contact
-        </Link>
+        <div className="flex items-center gap-2">
+          <form action={logoutAction}>
+            <button className={btnSecondary}>Sign out</button>
+          </form>
+          <Link href="/new" className={btnPrimary}>
+            <Plus className="h-4 w-4" /> New contact
+          </Link>
+        </div>
       </div>
 
-      <ul className="mt-6 w-full max-w-3xl flex flex-col gap-3">
-        {contacts.length === 0 && <li className="text-neutral-600">No contacts yet.</li>}
+      <ul className={`${card} mt-6 divide-y divide-line`}>
+        {contacts.length === 0 && <li className="p-6 text-sm text-muted">No contacts yet.</li>}
         {contacts.map((c) => (
-          <li
-            key={c.slug}
-            className="flex items-center gap-4 bg-slate-50 p-3 rounded-md border border-black shadow-md"
-          >
+          <li key={c.slug} className="flex flex-wrap items-center gap-3 p-3 sm:gap-4 sm:px-4">
             <Avatar src={c.photo ? `/${c.slug}/photo` : null} name={c} />
             <div className="min-w-0 flex-1">
-              <div className="font-semibold truncate">{fullName(c)}</div>
-              <div className="text-sm text-neutral-700 truncate">
+              <div className="truncate font-semibold">{fullName(c)}</div>
+              <div className="truncate text-sm text-muted">
                 /{c.slug}
                 {c.title ? ` · ${c.title}` : ""}
               </div>
-              <div className="text-xs text-neutral-500">
-                {c.links.length} link{c.links.length === 1 ? "" : "s"} · updated{" "}
-                {new Date(c.updatedAt).toLocaleDateString()}
+              <div className="text-xs text-muted">
+                {c.links.length} link{c.links.length === 1 ? "" : "s"} · updated {new Date(c.updatedAt).toLocaleDateString()}
               </div>
             </div>
-            <Link href={`/${c.slug}`} className="text-sm hover:underline">
-              View
+            <Link href={`/${c.slug}`} className="focus-ring inline-flex min-h-[44px] items-center gap-1 rounded-full px-3 text-sm font-medium text-muted hover:bg-soft hover:text-ink">
+              <ExternalLink className="h-4 w-4" /> View
             </Link>
-            <Link
-              href={`/admin/edit/${c.slug}`}
-              className="inline-flex items-center gap-1 text-sm rounded-md border border-black px-2 py-1 bg-white"
-            >
-              <Pencil className="w-4 h-4" /> Edit
+            <Link href={`/edit/${c.slug}`} className={btnSecondary}>
+              <Pencil className="h-4 w-4" /> Edit
             </Link>
           </li>
         ))}

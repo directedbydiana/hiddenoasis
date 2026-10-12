@@ -37,7 +37,7 @@ export function ensureContrast(candidate: string, bg: string, min: number, fallb
 
 /** Dark or light text for a given background. */
 export function readableOn(bg: string) {
-  return luminance(bg) > 0.4 ? "#1f1a17" : "#f6efe3";
+  return luminance(bg) > 0.4 ? "#111111" : "#ffffff";
 }
 
 export const AA_TEXT = 4.5;

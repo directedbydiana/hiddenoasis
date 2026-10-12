@@ -2,7 +2,8 @@ import "server-only";
 import fs from "node:fs/promises";
 import path from "node:path";
 import seedData from "@/data/contacts.seed.json";
-import { DEFAULT_DESIGN, type Contact } from "./types";
+import type { Contact } from "./types";
+import { parseDesign } from "./validate";
 
 const BLOB_STORE = "hiddenoasis";
 const BLOB_KEY = "contacts";
@@ -42,25 +43,15 @@ async function blobStore() {
   return getStore({ name: BLOB_STORE, consistency: "strong" });
 }
 
-// Fills in fields added after a record was stored (e.g. design).
+// Fills in fields added after a record was stored, and maps design settings
+// from older versions onto the current ones.
 function normalize(contacts: Contact[]): Contact[] {
-  return contacts.map((c) => {
-    const stored = ((c as Partial<Contact>).design ?? {}) as Partial<Contact["design"]> & { fobColor?: Contact["design"]["accent"] };
-    return {
-      ...c,
-      links: c.links ?? [],
-      orgs: c.orgs ?? [],
-      design: {
-        style: stored.style ?? DEFAULT_DESIGN.style,
-        paper: stored.paper ?? DEFAULT_DESIGN.paper,
-        ink: stored.ink ?? DEFAULT_DESIGN.ink,
-        accent: stored.accent ?? stored.fobColor ?? DEFAULT_DESIGN.accent,
-        photoTreated: stored.photoTreated ?? DEFAULT_DESIGN.photoTreated,
-        photoAlt: stored.photoAlt ?? "",
-        note: stored.note ?? "",
-      },
-    };
-  });
+  return contacts.map((c) => ({
+    ...c,
+    links: c.links ?? [],
+    orgs: c.orgs ?? [],
+    design: parseDesign((c as Partial<Contact>).design),
+  }));
 }
 
 function describe(err: unknown) {

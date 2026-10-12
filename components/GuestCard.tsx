@@ -4,69 +4,33 @@ import { useRef } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Download, ExternalLink, Mail, Pencil, Phone, X } from "lucide-react";
 import LinkIcon from "./LinkIcon";
-import { AA_TEXT, ensureContrast, mix, readableOn } from "@/lib/color";
-import { ACCENTS, INKS, PAPERS, fullName, photoAlt, type CardDesign, type PublicContact } from "@/lib/types";
+import { mix, readableOn } from "@/lib/color";
+import { ACCENTS, fullName, photoAlt, type AccentId, type PublicContact } from "@/lib/types";
 import { vcardFileName } from "@/lib/vcard";
 
-export interface CardPalette {
-  paper: string;
-  ink: string;
-  inkSoft: string;
-  rule: string;
-  accent: string;
-  onAccent: string;
-}
-
-export function paletteFor(d: CardDesign): CardPalette {
-  const paper = PAPERS[d.paper].hex;
-  const ink = INKS[d.ink].hex;
-  const accent = ACCENTS[d.accent].hex;
+/** CSS variables for an accent in both themes; `.accent-scope` picks the active one. */
+export function accentVars(id: AccentId): React.CSSProperties {
+  const a = ACCENTS[id];
   return {
-    paper,
-    ink,
-    inkSoft: ensureContrast(mix(ink, paper, 0.3), paper, AA_TEXT, ink),
-    rule: mix(ink, paper, 0.75),
-    accent,
-    onAccent: readableOn(accent),
-  };
+    "--accent-l": a.light,
+    "--accent-d": a.dark,
+    "--accent-soft-l": mix(a.light, "#ffffff", 0.35),
+    "--accent-soft-d": mix(a.dark, "#1b1f24", 0.35),
+    "--on-accent-l": readableOn(a.light),
+    "--on-accent-d": readableOn(a.dark),
+  } as React.CSSProperties;
 }
 
-const STYLE_SHAPE: Record<CardDesign["style"], string> = {
-  plain: "rounded-xl",
-  keytag: "rounded-3xl",
-  postcard: "rounded-md",
-  luggage: "rounded-r-xl rounded-l-[2.5rem]",
-  matchbook: "rounded-b-xl rounded-t-md",
-};
-
-// Style-specific trim; decorative only and kept in the margins.
-function Decor({ design, p }: { design: CardDesign; p: CardPalette }) {
-  switch (design.style) {
-    case "keytag":
-      return <span aria-hidden className="absolute left-4 bottom-4 w-5 h-5 rounded-full border-[3px]" style={{ borderColor: p.ink }} />;
-    case "postcard":
-      return <span aria-hidden className="absolute inset-2 rounded-[inherit] border border-dashed pointer-events-none" style={{ borderColor: p.rule }} />;
-    case "luggage":
-      return <span aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-[3px]" style={{ borderColor: p.accent }} />;
-    case "matchbook":
-      return <span aria-hidden className="absolute inset-x-0 top-0 h-2.5 rounded-t-[inherit]" style={{ background: `repeating-linear-gradient(90deg, ${p.ink} 0 3px, ${p.rule} 3px 6px)` }} />;
-    default:
-      return null;
-  }
-}
-
-function Photo({ contact, p }: { contact: PublicContact; p: CardPalette }) {
+function Photo({ contact }: { contact: PublicContact }) {
   const initials = `${contact.firstName[0] ?? ""}${contact.lastName[0] ?? ""}`.toUpperCase();
+  const cls = "h-[4.5rem] w-[4.5rem] shrink-0 rounded-full ring-4 ring-surface bg-soft object-cover";
+  if (contact.photoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={contact.photoUrl} alt={photoAlt(contact)} className={cls} />;
+  }
   return (
-    <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden border-2 border-[#1f1a17] bg-white">
-      {contact.photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={contact.photoUrl} alt={photoAlt(contact)} className="w-full h-full object-cover" style={contact.design.photoTreated ? { filter: "sepia(0.3) saturate(0.85) contrast(0.95)" } : undefined} />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center font-semibold text-lg" style={{ color: p.inkSoft }}>
-          {initials || "?"}
-        </div>
-      )}
+    <div className={`${cls} flex items-center justify-center text-xl font-semibold text-muted`} aria-hidden>
+      {initials || "?"}
     </div>
   );
 }
@@ -75,54 +39,45 @@ type Row = { key: string; icon: React.ReactNode; label: string; detail: string; 
 
 const CARD_ROWS = 4; // link buttons shown on the compact card (plus Email/Call)
 
-function LinkButton({ row, p, tabIndex }: { row: Row; p: CardPalette; tabIndex: number }) {
+const pill =
+  "focus-ring flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-3 text-sm font-medium text-ink hover:bg-soft";
+
+function LinkButton({ row, tabIndex }: { row: Row; tabIndex: number }) {
   return (
-    <a
-      href={row.href}
-      tabIndex={tabIndex}
-      {...(row.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className="card-focus flex items-center gap-3 md:gap-2 h-12 md:h-10 px-3 rounded-lg border-2 border-[#1f1a17] bg-white/70 hover:bg-white text-base md:text-sm font-medium shadow-[2px_2px_0_#1f1a17] hover:-translate-y-px transition"
-      style={{ color: p.ink }}
-    >
-      <span className="w-5 h-5 md:w-4 md:h-4 shrink-0 [&>svg]:w-full [&>svg]:h-full" style={{ color: p.accent }}>{row.icon}</span>
+    <a href={row.href} tabIndex={tabIndex} title={row.detail} {...(row.external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={pill}>
+      <span className="h-4 w-4 shrink-0 text-[var(--accent)] [&>svg]:h-full [&>svg]:w-full">{row.icon}</span>
       <span className="truncate">{row.label}</span>
     </a>
   );
 }
 
 // Every link in one list, opened from the card when there are too many to show.
-function LinksDialog({ rows, name, p, dialogRef }: { rows: Row[]; name: string; p: CardPalette; dialogRef: React.RefObject<HTMLDialogElement> }) {
+function LinksDialog({ rows, name, dialogRef }: { rows: Row[]; name: string; dialogRef: React.RefObject<HTMLDialogElement> }) {
   return (
     <dialog
       ref={dialogRef}
       aria-label={`All links for ${name}`}
-      className="w-[min(92vw,26rem)] max-h-[80vh] rounded-xl border-2 border-[#1f1a17] p-0 shadow-[6px_6px_0_#1f1a17] backdrop:bg-black/50"
-      style={{ background: p.paper, color: p.ink }}
+      className="w-[min(92vw,26rem)] max-h-[80vh] rounded-xl border border-line bg-surface p-0 text-ink shadow-card"
       onClick={(e) => e.target === dialogRef.current && dialogRef.current?.close()}
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b-2 border-[#1f1a17]">
+      <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <h3 className="font-semibold">
           {name} · {rows.length} links
         </h3>
-        <button type="button" onClick={() => dialogRef.current?.close()} aria-label="Close" className="card-focus p-1 rounded-md hover:bg-black/10">
-          <X className="w-4 h-4" />
+        <button type="button" onClick={() => dialogRef.current?.close()} aria-label="Close" className="focus-ring rounded-full p-1.5 text-muted hover:bg-soft hover:text-ink">
+          <X className="h-4 w-4" />
         </button>
       </div>
-      <ul className="max-h-[60vh] overflow-y-auto p-3 flex flex-col gap-2">
+      <ul className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto p-3">
         {rows.map((r) => (
           <li key={r.key}>
-            <a
-              href={r.href}
-              {...(r.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-              className="card-focus flex items-center gap-3 px-3 py-2 rounded-lg border-2 border-[#1f1a17] bg-white/70 hover:bg-white shadow-[2px_2px_0_#1f1a17]"
-              style={{ color: p.ink }}
-            >
-              <span className="w-5 h-5 shrink-0 [&>svg]:w-full [&>svg]:h-full" style={{ color: p.accent }}>{r.icon}</span>
+            <a href={r.href} {...(r.external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="focus-ring flex items-center gap-3 rounded-lg border border-line px-3 py-2 hover:bg-soft">
+              <span className="h-5 w-5 shrink-0 text-[var(--accent)] [&>svg]:h-full [&>svg]:w-full">{r.icon}</span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium truncate">{r.label}</span>
-                <span className="block text-xs truncate" style={{ color: p.inkSoft }}>{r.detail}</span>
+                <span className="block truncate text-sm font-medium">{r.label}</span>
+                <span className="block truncate text-xs text-muted">{r.detail}</span>
               </span>
-              <ExternalLink className="w-3.5 h-3.5 shrink-0" style={{ color: p.inkSoft }} />
+              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted" />
             </a>
           </li>
         ))}
@@ -133,21 +88,17 @@ function LinksDialog({ rows, name, p, dialogRef }: { rows: Row[]; name: string; 
 
 export interface GuestCardProps {
   contact: PublicContact;
-  /** Controls whether the card's links are tabbable (inactive rolodex cards are not). */
-  active?: boolean;
   /** Full page: list every link on the card instead of the compact set. */
   showAll?: boolean;
   className?: string;
 }
 
-// One card: who they are, the links that matter, and a Save Contact button.
-export default function GuestCard({ contact, active = true, showAll = false, className = "" }: GuestCardProps) {
+// One card: a banner in the contact's accent, who they are, the links that
+// matter, and a Save Contact button.
+export default function GuestCard({ contact, showAll = false, className = "" }: GuestCardProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const d = contact.design;
-  const p = paletteFor(d);
-  const tab = active ? 0 : -1;
   const name = fullName(contact) || "Unnamed";
-  const subtitle = [contact.title, contact.orgs.join(", ")].filter(Boolean).join(" · ");
+  const orgs = contact.orgs.join(" · ");
 
   const contactRows: Row[] = [];
   if (contact.email) contactRows.push({ key: "email", icon: <Mail />, label: "Email", detail: contact.email, href: `mailto:${contact.email}`, external: false });
@@ -164,81 +115,68 @@ export default function GuestCard({ contact, active = true, showAll = false, cla
   const hidden = linkRows.length - shownLinks.length;
 
   return (
-    <article
-      aria-label={name}
-      aria-hidden={!active}
-      className={`relative ${STYLE_SHAPE[d.style]} border-2 border-[#1f1a17] flex flex-col gap-3 p-5 ${d.style === "luggage" ? "pl-9" : ""} ${className}`}
-      style={{ background: p.paper, color: p.ink, boxShadow: "6px 6px 0 #1f1a17" }}
-    >
-      <Decor design={d} p={p} />
+    <article aria-label={name} className={`accent-scope relative flex flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-card ${className}`} style={accentVars(contact.design.accent)}>
+      <div className="h-16 shrink-0" style={{ background: "linear-gradient(120deg, var(--accent), var(--accent-soft))" }} />
 
       {contact.slug && (
-        <div className="absolute top-3 right-3 flex items-center gap-1">
+        <div className="absolute right-3 top-3 flex items-center gap-1">
           {!showAll && (
-            <Link href={`/${contact.slug}`} tabIndex={tab} aria-label={`Open ${name}'s page`} className="card-focus p-1 rounded-md hover:bg-black/10" style={{ color: p.inkSoft }}>
-              <ArrowUpRight className="w-4 h-4" />
+            <Link href={`/${contact.slug}`} aria-label={`Open ${name}'s page`} title="Open page" className="focus-ring rounded-full bg-black/15 p-1.5 text-[var(--on-accent)] hover:bg-black/30">
+              <ArrowUpRight className="h-4 w-4" />
             </Link>
           )}
-          <Link href={`/admin/edit/${contact.slug}`} tabIndex={tab} aria-label={`Edit ${name}`} className="card-focus p-1 rounded-md hover:bg-black/10" style={{ color: p.inkSoft }}>
-            <Pencil className="w-4 h-4" />
+          <Link href={`/edit/${contact.slug}`} aria-label={`Edit ${name}`} title="Edit" className="focus-ring rounded-full bg-black/15 p-1.5 text-[var(--on-accent)] hover:bg-black/30">
+            <Pencil className="h-4 w-4" />
           </Link>
         </div>
       )}
 
-      <div className="flex items-center gap-3 md:gap-4 pr-12 md:pr-16">
-        <Photo contact={contact} p={p} />
-        <div className="min-w-0">
-          <h2 className="text-xl md:text-2xl font-semibold leading-tight break-words md:truncate">{name}</h2>
-          {subtitle && (
-            <p className="text-sm leading-snug line-clamp-2" style={{ color: p.inkSoft }}>
-              {subtitle}
-            </p>
-          )}
+      <div className="flex flex-1 flex-col gap-4 px-5 pb-5">
+        <div className="-mt-9">
+          <Photo contact={contact} />
         </div>
+
+        <div className="-mt-1">
+          <h2 className="text-xl font-semibold leading-tight">{name}</h2>
+          {contact.title && <p className="mt-0.5 text-sm text-ink">{contact.title}</p>}
+          {orgs && <p className="text-sm text-muted">{orgs}</p>}
+          {contact.design.note && <p className="mt-1.5 text-sm italic text-muted">{contact.design.note}</p>}
+        </div>
+
+        {contactRows.length > 0 && (
+          <div className="grid grid-cols-2 gap-2">
+            {contactRows.map((r) => (
+              <LinkButton key={r.key} row={r} tabIndex={0} />
+            ))}
+          </div>
+        )}
+
+        {shownLinks.length > 0 && (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {shownLinks.map((r) => (
+              <LinkButton key={r.key} row={r} tabIndex={0} />
+            ))}
+          </div>
+        )}
+
+        {hidden > 0 && (
+          <button type="button" onClick={() => dialogRef.current?.showModal()} className="focus-ring self-start rounded-md text-sm font-semibold text-primary hover:underline">
+            Show all {linkRows.length} links
+          </button>
+        )}
+
+        {contact.slug && (
+          <a
+            href={`/${contact.slug}/vcard.vcf`}
+            download={vcardFileName({ ...contact, photo: null })}
+            className="focus-ring mt-auto flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-semibold text-[var(--on-accent)] hover:opacity-90"
+          >
+            <Download className="h-4 w-4" /> Save contact
+          </a>
+        )}
       </div>
-      {d.note && <p className="font-hand text-xl leading-tight -mt-1">{d.note}</p>}
 
-      {contactRows.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
-          {contactRows.map((r) => (
-            <LinkButton key={r.key} row={r} p={p} tabIndex={tab} />
-          ))}
-        </div>
-      )}
-
-      {shownLinks.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {shownLinks.map((r) => (
-            <LinkButton key={r.key} row={r} p={p} tabIndex={tab} />
-          ))}
-        </div>
-      )}
-
-      {hidden > 0 && (
-        <button
-          type="button"
-          tabIndex={tab}
-          onClick={() => dialogRef.current?.showModal()}
-          className="card-focus self-start text-base md:text-sm font-medium underline underline-offset-4 decoration-2 hover:opacity-80"
-          style={{ color: p.ink, textDecorationColor: p.accent }}
-        >
-          All {linkRows.length} links
-        </button>
-      )}
-
-      {contact.slug && (
-        <a
-          href={`/${contact.slug}/vcard.vcf`}
-          download={vcardFileName({ ...contact, photo: null })}
-          tabIndex={tab}
-          className="card-focus mt-auto flex items-center justify-center gap-2 h-12 md:h-11 text-base rounded-lg border-2 border-[#1f1a17] font-semibold shadow-[3px_3px_0_#1f1a17] hover:-translate-y-px transition"
-          style={{ background: p.accent, color: p.onAccent }}
-        >
-          <Download className="w-4 h-4" /> Save contact
-        </a>
-      )}
-
-      {hidden > 0 && <LinksDialog rows={linkRows} name={name} p={p} dialogRef={dialogRef} />}
+      {hidden > 0 && <LinksDialog rows={linkRows} name={name} dialogRef={dialogRef} />}
     </article>
   );
 }

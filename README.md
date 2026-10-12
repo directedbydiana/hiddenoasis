@@ -1,9 +1,8 @@
 # ShadedOasis
 
-A digital rolodex that replaces Dot cards at networking events, styled as a motel's
-front-desk card file. The homepage is a rotating Rolodex of guest cards on a plain
-background whose color follows the viewer's local time of day. Each contact also lives
-at `/<slug>` and can be saved to a phone via `/<slug>/vcard.vcf`.
+Digital contact cards that replace Dot cards at networking events. The homepage is a
+searchable directory of cards. Each contact also lives at `/<slug>` and can be saved to
+a phone via `/<slug>/vcard.vcf`.
 
 ## Running locally
 
@@ -16,36 +15,43 @@ npm run dev
 Contacts are stored in `.data/contacts.json` (gitignored) during local development.
 On first run it is seeded from `data/contacts.seed.json`.
 
-## The Rolodex
+## Pages
 
-- A–Z key-fob tabs: click, or type a letter, to jump.
-- Search strip filters cards instantly.
-- Turn cards with the scroll wheel, drag, swipe, or arrow keys. Enter flips the active
-  card to its notes side.
-- Stamp actions on every card: Call, Email, Copy, Save (.vcf), Edit, Notes.
-- Decorative filler cards (blank index cards, a drive-in ticket, a front-desk receipt,
-  a door hanger) sit between the real cards so the file looks full. They are
-  decoration only and hidden from assistive tech.
-- `prefers-reduced-motion` swaps the rotation for a crossfade and drops the fillers.
-- On phones the file becomes a scrolling stack with large single-column rows, and the
-  search box and letter scrubber stay pinned at the top.
-- The "Hours" control in the footer pins a time of day (also `?time=night` etc.) or
-  returns to live local time. Live mode re-checks every few minutes.
+| Path | Who | What |
+| --- | --- | --- |
+| `/` | everyone | Directory: search, A–Z filter, one card per contact |
+| `/<slug>` | everyone | A single card with every link and a Save contact button |
+| `/new`, `/edit/<slug>` | everyone | The card editor (see below) |
+| `/admin` | password | Manage list, sign out |
 
-## Editing contacts
+## The editor
 
-Everything under `/admin` is gated by `middleware.ts`. Signing in with
-`ADMIN_PASSWORD` sets a signed, httpOnly session cookie (7 days) using `AUTH_SECRET`.
-If either variable is missing, admin is disabled and the login page says so.
+Anyone can open the editor, fill in a card, see it live (plus how the vCard lands on
+iPhone and Android), and **Download .vcf**. The file is built in the browser, so nothing
+is stored and no password is needed.
 
-The editor covers names, title, organizations, email, phone, photo, and links, plus the
-card design: shape, paper, ink (only WCAG AA pairings are enabled), accent color, photo
-treatment and alt text, and a one-line note. Surprise me, Undo, and Reset are always
-available. Designs save as structured settings, never images. The right column shows the
-card live and how the vCard lands on iPhone and Android.
+**Add to directory** / **Save changes** writes the card to the shared store and needs the
+admin password. The editor asks for it in a dialog; a correct password also starts a
+7-day session so later saves don't ask again. Deleting a contact is only offered while
+signed in.
 
-Cards show Email, Call, and the first four links; with more links an "All N links"
-button opens a dialog listing every link. The contact's own page lists them all.
+The editor covers names, title, organizations, email, phone, photo (downscaled in the
+browser), links, an accent color, a one-line tagline, and photo alt text. Cards show
+Email, Call, and the first four links; with more links a "Show all" button opens a
+dialog listing every link. The contact's own page lists them all.
+
+## Theme
+
+Light and dark mode follow the system preference by default. The toggle in the header
+overrides it and remembers the choice in `localStorage`. Each accent color has a
+light-mode and a dark-mode shade so banners and buttons stay readable in both.
+
+## Authentication
+
+Everything under `/admin` is gated by `middleware.ts`. Signing in with `ADMIN_PASSWORD`
+(on `/admin/login` or from the editor's save dialog) sets a signed, httpOnly session
+cookie using `AUTH_SECRET`. If either variable is missing, saving and `/admin` are
+disabled and the pages say so.
 
 ## Storage on Netlify
 
@@ -58,23 +64,18 @@ To use the production store from your machine, set `NETLIFY_SITE_ID` and
 `NETLIFY_BLOBS_TOKEN` (a personal access token) in `.env.local`. `CONTACTS_STORE=file|blobs`
 forces a backend.
 
-## Fonts
-
-Google fonts (Work Sans, Special Elite, Caveat) load through `next/font/google`. The two
-local display faces live in `app/fonts/` and load through `next/font/local`:
-Machine Heavy for signage, Tropical Sunlight for script accents and typed signatures.
-
 ## Deploying
 
 Netlify builds with the Node version in `.nvmrc`. Set `ADMIN_PASSWORD` and `AUTH_SECRET`
-in the site's environment variables before the first deploy. The old `/dianacdev` and
-`/diana_cervantes.vcf` URLs redirect to the current card.
+in the site's environment variables before the first deploy. The old `/dianacdev`,
+`/diana_cervantes.vcf`, `/admin/new`, and `/admin/edit/<slug>` URLs redirect to their
+current locations.
 
 ## Environment variables
 
 | Variable | Purpose |
 | --- | --- |
-| `ADMIN_PASSWORD` | Password for `/admin` |
+| `ADMIN_PASSWORD` | Password for saving cards and `/admin` |
 | `AUTH_SECRET` | ≥16 random chars, signs the session cookie |
 | `CONTACTS_STORE` | Optional: `file` or `blobs` |
 | `NETLIFY_SITE_ID`, `NETLIFY_BLOBS_TOKEN` | Optional: use Netlify Blobs outside Netlify |

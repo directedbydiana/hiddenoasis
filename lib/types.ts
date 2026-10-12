@@ -1,5 +1,3 @@
-import { contrast, AA_TEXT } from "./color";
-
 export const LINK_KINDS = [
   "website",
   "github",
@@ -26,82 +24,52 @@ export interface ContactPhoto {
 }
 
 // ---------------------------------------------------------------------------
-// Card design: structured settings chosen from a small, pre-matched kit.
-
-export const CARD_STYLES = ["plain", "keytag", "postcard", "luggage", "matchbook"] as const;
-export type CardStyle = (typeof CARD_STYLES)[number];
-export const CARD_STYLE_LABELS: Record<CardStyle, string> = {
-  plain: "Plain card",
-  keytag: "Key tag",
-  postcard: "Postcard",
-  luggage: "Luggage tag",
-  matchbook: "Matchbook",
-};
-
-export const PAPERS = {
-  cream: { label: "Cream", hex: "#f4ead6" },
-  bone: { label: "Bone", hex: "#f1efe6" },
-  sand: { label: "Sand", hex: "#e8d9b8" },
-  butter: { label: "Butter", hex: "#f1e3a8" },
-  sage: { label: "Sage", hex: "#d8dcc2" },
-  teal: { label: "Teal", hex: "#c9dcd8" },
-  sky: { label: "Sky", hex: "#cfdbe6" },
-  rose: { label: "Rose", hex: "#e9c9c3" },
-  terracotta: { label: "Terracotta", hex: "#e3b9a1" },
-  lavender: { label: "Lavender", hex: "#dcd3e3" },
-} as const;
-export type PaperId = keyof typeof PAPERS;
-export const PAPER_IDS = Object.keys(PAPERS) as PaperId[];
-
-export const INKS = {
-  black: { label: "Black", hex: "#1f1a17" },
-  navy: { label: "Navy", hex: "#1f3b5c" },
-  oxblood: { label: "Oxblood", hex: "#5a1f22" },
-  forest: { label: "Forest", hex: "#244430" },
-} as const;
-export type InkId = keyof typeof INKS;
-export const INK_IDS = Object.keys(INKS) as InkId[];
+// Card design. Each accent has a light-mode and a dark-mode value so the
+// banner and Save button stay readable on either background.
 
 export const ACCENTS = {
-  red: { label: "Red", hex: "#b5352b" },
-  teal: { label: "Teal", hex: "#2d6e6a" },
-  navy: { label: "Navy", hex: "#1f3b5c" },
-  forest: { label: "Pine", hex: "#2f5a3c" },
-  mustard: { label: "Mustard", hex: "#c89a2a" },
-  terracotta: { label: "Terracotta", hex: "#c8714f" },
-  rose: { label: "Rose", hex: "#c76b7a" },
-  black: { label: "Black", hex: "#1f1a17" },
+  blue: { label: "Blue", light: "#0a66c2", dark: "#70b5f9" },
+  teal: { label: "Teal", light: "#0e7c86", dark: "#5fd3dd" },
+  green: { label: "Green", light: "#1b7f3b", dark: "#6fd38a" },
+  purple: { label: "Purple", light: "#6b3fd1", dark: "#b59cff" },
+  rose: { label: "Rose", light: "#c0315c", dark: "#f58fb0" },
+  orange: { label: "Orange", light: "#c2410c", dark: "#fb923c" },
+  slate: { label: "Slate", light: "#475569", dark: "#a3b1c6" },
+  black: { label: "Black", light: "#191919", dark: "#e9edf0" },
 } as const;
 export type AccentId = keyof typeof ACCENTS;
 export const ACCENT_IDS = Object.keys(ACCENTS) as AccentId[];
+const DEFAULT_ACCENT: AccentId = "blue";
+
+// Accent ids from the first version of the site, mapped to the current set.
+const LEGACY_ACCENTS: Record<string, AccentId> = {
+  red: "rose",
+  navy: "blue",
+  forest: "green",
+  mustard: "orange",
+  terracotta: "orange",
+};
+
+export function coerceAccent(v: unknown, fallback: AccentId = DEFAULT_ACCENT): AccentId {
+  if (typeof v !== "string") return fallback;
+  if (v in ACCENTS) return v as AccentId;
+  return LEGACY_ACCENTS[v] ?? fallback;
+}
 
 export const NOTE_MAX = 90;
 
 export interface CardDesign {
-  style: CardStyle;
-  paper: PaperId;
-  ink: InkId;
   accent: AccentId;
-  photoTreated: boolean;
   photoAlt: string;
   /** One short line shown under the title. */
   note: string;
 }
 
 export const DEFAULT_DESIGN: CardDesign = {
-  style: "plain",
-  paper: "cream",
-  ink: "black",
-  accent: "teal",
-  photoTreated: true,
+  accent: DEFAULT_ACCENT,
   photoAlt: "",
   note: "",
 };
-
-/** True when this ink reads at WCAG AA body-text contrast on this paper. */
-export function inkPasses(ink: InkId, paper: PaperId) {
-  return contrast(INKS[ink].hex, PAPERS[paper].hex) >= AA_TEXT;
-}
 
 // ---------------------------------------------------------------------------
 

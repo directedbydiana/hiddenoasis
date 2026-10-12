@@ -1,29 +1,27 @@
 import type { Metadata } from "next";
-import { Caveat, Special_Elite, Work_Sans } from "next/font/google";
-import localFont from "next/font/local";
+import { Inter } from "next/font/google";
+import SiteHeader from "@/components/SiteHeader";
 import "./globals.css";
 
-const sans = Work_Sans({ subsets: ["latin"], variable: "--font-sans" });
-// Typewriter for field labels, handwriting for accent entries only.
-const type = Special_Elite({ weight: "400", subsets: ["latin"], variable: "--font-type" });
-const hand = Caveat({ weight: ["500", "700"], subsets: ["latin"], variable: "--font-hand" });
-// Hand-painted sign lettering and a retro script for neon and signatures.
-const sign = localFont({ src: "./fonts/MachineHeavy.otf", variable: "--font-sign", display: "swap" });
-const script = localFont({ src: "./fonts/TropicalSunlight.otf", variable: "--font-script", display: "swap" });
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "ShadedOasis",
-  description: "Used to replace Dot cards, for networking events and conferences.",
+  description: "Digital contact cards for networking events: build one, download the vCard, share the link.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+// Applies the saved (or system) theme before first paint to avoid a flash.
+const themeScript = `(function(){try{var t=localStorage.getItem("theme");var d=t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches;if(d)document.documentElement.classList.add("dark")}catch(e){}})()`;
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={`${sans.className} ${sans.variable} ${type.variable} ${hand.variable} ${sign.variable} ${script.variable}`}>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="color-scheme" content="light dark" />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className={`${sans.className} ${sans.variable} flex min-h-screen flex-col`}>
+        <SiteHeader />
         {children}
       </body>
     </html>

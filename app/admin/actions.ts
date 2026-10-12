@@ -1,28 +1,29 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import {
-  SESSION_COOKIE,
-  SESSION_TTL_SECONDS,
-  adminConfigured,
-  createSessionToken,
-  passwordMatches,
-  verifySessionToken,
-} from "@/lib/auth";
+import { adminConfigured, passwordMatches } from "@/lib/auth";
+import { endAdminSession, hasAdminSession, startAdminSession } from "@/lib/session";
 import { deleteContact, saveContact } from "@/lib/store";
 import { parseContact } from "@/lib/validate";
 
-export type ActionResult = { error: string } | undefined;
-
-async function requireAdmin() {
-  const ok = await verifySessionToken(cookies().get(SESSION_COOKIE)?.value);
-  if (!ok) redirect("/admin/login");
-}
+export type ActionResult = { error: string; needsPassword?: boolean } | undefined;
 
 function safeNext(next: string | undefined) {
   return next && next.startsWith("/admin") && !next.startsWith("//") ? next : "/admin";
+}
+
+// A save is allowed with an existing session, or with the admin password
+// sent along with the form (which also starts a session for later saves).
+async function authorize(password?: string): Promise<ActionResult> {
+  if (await hasAdminSession()) return undefined;
+  if (!adminConfigured()) {
+    return { error: "Saving is disabled: ADMIN_PASSWORD and AUTH_SECRET are not set on the server." };
+  }
+  if (password === undefined) return { error: "Enter the admin password to save.", needsPassword: true };
+  if (!(await passwordMatches(password))) return { error: "Incorrect password.", needsPassword: true };
+  await startAdminSession();
+  return undefined;
 }
 
 export async function loginAction(password: string, next?: string): Promise<ActionResult> {
@@ -30,29 +31,25 @@ export async function loginAction(password: string, next?: string): Promise<Acti
     return { error: "Admin is not configured. Set ADMIN_PASSWORD and AUTH_SECRET." };
   }
   if (!(await passwordMatches(password))) return { error: "Incorrect password." };
-
-  cookies().set(SESSION_COOKIE, await createSessionToken(), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: SESSION_TTL_SECONDS,
-  });
+  await startAdminSession();
   redirect(safeNext(next));
 }
 
 export async function logoutAction() {
-  cookies().delete(SESSION_COOKIE);
+  endAdminSession();
   redirect("/");
 }
 
 export async function saveContactAction(
   payload: unknown,
-  previousSlug?: string
+  previousSlug?: string,
+  password?: string
 ): Promise<ActionResult> {
-  await requireAdmin();
   const parsed = parseContact(payload);
   if (!parsed.contact) return { error: parsed.error };
+
+  const denied = await authorize(password);
+  if (denied) return denied;
 
   try {
     await saveContact(parsed.contact, previousSlug || undefined);
@@ -60,19 +57,21 @@ export async function saveContactAction(
     return { error: err instanceof Error ? err.message : "Could not save." };
   }
   revalidatePath("/");
+  revalidatePath("/admin");
   revalidatePath(`/${parsed.contact.slug}`);
   if (previousSlug) revalidatePath(`/${previousSlug}`);
-  redirect("/admin");
+  redirect(`/${parsed.contact.slug}`);
 }
 
 export async function deleteContactAction(slug: string): Promise<ActionResult> {
-  await requireAdmin();
+  if (!(await hasAdminSession())) return { error: "Sign in to delete contacts." };
   try {
     await deleteContact(slug);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not delete." };
   }
   revalidatePath("/");
+  revalidatePath("/admin");
   revalidatePath(`/${slug}`);
   redirect("/admin");
 }
